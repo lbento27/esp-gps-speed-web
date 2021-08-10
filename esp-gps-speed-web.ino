@@ -81,7 +81,11 @@ void gpsRead(){
     while (Serial.available())
     {
       if (gps.encode(Serial.read())) // Did a new valid sentence come in?
+       
        num_sat = gps.satellites.value();
+       alt = gps.altitude.meters();
+       gTime = gps.time.value();
+       
        gpsMaxSpeed();
        gpsSpeedTime();
     }
