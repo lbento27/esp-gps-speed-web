@@ -34,16 +34,14 @@ int targetSpeed = 30; //set target speed for 0 to
 int gps_speed;
 int num_sat;
 int max_speed = 0;
-int time_state = 1;
 
-int alt=800;//gps altitude
-int gTime=14553388;//gps time
+int alt;//gps altitude
+int gTime;//gps time
 
-int mil;
-float mil2;
-int tsec; 
-uint32_t startMillis;  //some global variables available anywhere in the program
-uint32_t currentMillis;
+float tsec=0.0;
+int time_state = 1; 
+int startTime;  //some global variables available anywhere in the program
+int endTime;
 
 
 void setup()   {                
@@ -104,29 +102,22 @@ void gpsMaxSpeed(){
 }
 
 void gpsSpeedTime(){
-  //0-30km/h calc
+
+  //0-tagetSpeedkm/h calc
   if (gps_speed > 1 && time_state == 1){
-    startMillis = millis();
+    startTime = gps.time.value();
     time_state = 0;
   } 
-  if (gps_speed >= targetSpeed && time_state == 0){ //change where if you want to call to a different speed
-    currentMillis = millis();
-    //calculate seconds with decimal case for more acurate mesure
-    tsec = (currentMillis - startMillis)/1000;
-    mil = (currentMillis - startMillis)%1000;
-    mil2 = ((currentMillis - startMillis) / 1000.0, 1);
-    if (mil < 100){
-    mil = 0;
-    }
-    if (mil < 10){
-    mil = 0;
-    }
-        
+  if (gps_speed >= targetSpeed && time_state == 0){ 
+    endTime = gps.time.value();
     time_state = 2;
   }
+  //calculate time base on gps time
+  tsec=(endTime-startTime)/100;
+  
   //reset timer in case of bug
-  if(tsec > 60){
-    tsec=0;
+  if(tsec < 0 || tsec > 60){
+    tsec=999.9;
   }
   }
 
@@ -138,7 +129,7 @@ void handle_OnConnect() {
 void handle_reset() {
   max_speed = 0;
   time_state = 1;
-  tsec = 0;
+  tsec = 0.0;
   server.send(200, "text/html", SendHTML()); 
 }
 
