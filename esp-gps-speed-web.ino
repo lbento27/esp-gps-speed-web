@@ -41,8 +41,14 @@ int h;
 int hh;
 int m;
 int mm;
+float lati;
+float longi;
+String lati_str;
+String longi_str;
 
+int sec=0;
 float tsec=0.0;
+
 int time_state = 1; 
 int startTime;  //some global variables available anywhere in the program
 int endTime;
@@ -82,19 +88,26 @@ void gpsRead(){
   {
     while (Serial.available())
     {
-      if (gps.encode(Serial.read())) // Did a new valid sentence come in?
+      if (gps.encode(Serial.read())){ // Did a new valid sentence come in?
        
        num_sat = gps.satellites.value();
-       alt = gps.altitude.meters();
-       
+        
        gTime = gps.time.value();//convert gtime(hhmmsscc) to retrive hh and mm
        h=(gTime / 10000000U) % 10;
        hh=(gTime / 1000000U) % 10;
        m=(gTime / 100000U) % 10;
        mm=(gTime / 10000U) % 10;
+
+       //just for fun, why not
+       alt = gps.altitude.meters();
+       lati=gps.location.lat();
+       longi=gps.location.lng();
+       lati_str =String(lati , 6);
+       longi_str=String(longi , 6);
        
        gpsMaxSpeed();
        gpsSpeedTime();
+      }
     }
   }
 }
@@ -122,11 +135,12 @@ void gpsSpeedTime(){
     time_state = 2;
   }
   //calculate time base on gps time
-  tsec=(endTime-startTime)/100;
+  sec = endTime-startTime;
+  tsec=(float)sec / 100.0;
   
-  //reset timer in case of bug
-  if(tsec < 0 || tsec > 60){
-    tsec=999.9;
+  //reset timer in case of bug menor que 0 sec ou maior que 600sec
+  if(sec < 0 || sec > 6000){
+    tsec = 0.0;
   }
   }
 
@@ -139,6 +153,8 @@ void handle_reset() {
   max_speed = 0;
   time_state = 1;
   tsec = 0.0;
+  startTime = 0;
+  endTime = 0;
   server.send(200, "text/html", SendHTML()); 
 }
 
@@ -176,31 +192,36 @@ String SendHTML(){
   ptr +="</head>\n";
   ptr +="<body>\n";
   ptr +="<h1>RC GPS</h1>\n";
-  ptr +="<h3 style=\"text-align: left;display: inline-block;\">";
+  //info num sat
+  if(num_sat < 6){ptr +="<h3 style=\" color:#b80000;text-align: left;display: inline-block;\">";
   ptr +="SAT: ";
   ptr +=num_sat;
-  ptr +="</h3>";
+  ptr +="</h3>";}
+  if(num_sat >= 6){ptr +="<h3 style=\"text-align: left;display: inline-block;\">";
+  ptr +="SAT: ";
+  ptr +=num_sat;
+  ptr +="</h3>";}
   //change color base on timer start(green), timer stop(red), timer ready(black)
   if(time_state == 1){
   ptr +="<h3 style=\"text-align: right;display: inline-block;margin-left: 100px;\">";
   ptr +="0-";
   ptr +=targetSpeed;
   ptr +="Km/h: ";
-  ptr +=tsec;
+  ptr +=String(tsec , 1);
   ptr +=" s</h3>\n";}
   if(time_state == 0){
   ptr +="<h3 style=\"color: #27750f; text-align: right;display: inline-block;margin-left: 100px;\">";
   ptr +="0-";
   ptr +=targetSpeed;
   ptr +="Km/h: ";
-  ptr +=tsec;
+  ptr +=String(tsec , 1);
   ptr +=" s</h3>\n";}
   if(time_state == 2){
   ptr +="<h3 style=\" color: #b80000; text-align: right;display: inline-block;margin-left: 100px;\">";
   ptr +="0-";
   ptr +=targetSpeed;
   ptr +="Km/h: ";
-  ptr +=tsec;
+  ptr +=String(tsec , 1);//ready to display with 1 decimal case;
   ptr +=" s</h3>\n";}
   //end color change
   ptr +="<h3>Max Speed:</h3>";
@@ -221,8 +242,20 @@ String SendHTML(){
   ptr +=m;
   ptr +=mm;
   ptr +="</h4>\n";
-  ptr +="<h5>Inf:For best resultes wait for 7 sat or more.</h5>\n";
+  ptr +="<h5>Lat:";
+  ptr +=lati_str;
+  ptr +=" Lng:";
+  ptr +=longi_str;
+  ptr +="</h5>\n";
+  ptr +="<h5>Inf:For best results wait for 7 sat or more.</h5>\n";
   ptr +="<h5>Lbento</h5>\n";
+  //debug
+  ptr +="<h5>";
+  ptr +=startTime;
+  ptr +="    ";
+  ptr +=endTime;
+  ptr +="</h5>\n";
+  //end debug
   ptr +="</body>\n";
   ptr +="</html>\n";
   return ptr;
