@@ -37,6 +37,10 @@ int max_speed = 0;
 
 int alt;//gps altitude
 int gTime;//gps time
+int h; 
+int hh;
+int m;
+int mm;
 
 float tsec=0.0;
 int time_state = 1; 
@@ -82,7 +86,12 @@ void gpsRead(){
        
        num_sat = gps.satellites.value();
        alt = gps.altitude.meters();
-       gTime = gps.time.value();
+       
+       gTime = gps.time.value();//convert gtime(hhmmsscc) to retrive hh and mm
+       h=(gTime / 10000000U) % 10;
+       hh=(gTime / 1000000U) % 10;
+       m=(gTime / 100000U) % 10;
+       mm=(gTime / 10000U) % 10;
        
        gpsMaxSpeed();
        gpsSpeedTime();
@@ -171,12 +180,29 @@ String SendHTML(){
   ptr +="SAT: ";
   ptr +=num_sat;
   ptr +="</h3>";
+  //change color base on timer start(green), timer stop(red), timer ready(black)
+  if(time_state == 1){
   ptr +="<h3 style=\"text-align: right;display: inline-block;margin-left: 100px;\">";
   ptr +="0-";
   ptr +=targetSpeed;
   ptr +="Km/h: ";
   ptr +=tsec;
-  ptr +=" s</h3>\n";
+  ptr +=" s</h3>\n";}
+  if(time_state == 0){
+  ptr +="<h3 style=\"color: #27750f; text-align: right;display: inline-block;margin-left: 100px;\">";
+  ptr +="0-";
+  ptr +=targetSpeed;
+  ptr +="Km/h: ";
+  ptr +=tsec;
+  ptr +=" s</h3>\n";}
+  if(time_state == 2){
+  ptr +="<h3 style=\" color: #b80000; text-align: right;display: inline-block;margin-left: 100px;\">";
+  ptr +="0-";
+  ptr +=targetSpeed;
+  ptr +="Km/h: ";
+  ptr +=tsec;
+  ptr +=" s</h3>\n";}
+  //end color change
   ptr +="<h3>Max Speed:</h3>";
   ptr +="<h2 style=\"color: #cf0000;\">";
   ptr +=max_speed;
@@ -185,11 +211,15 @@ String SendHTML(){
   ptr +="<a style=\"display: inline-block;\" class=\"button button-off\" href=\"/reset\">RESET</a>\n";
   ptr +="<a style=\"display: inline-block;\" class=\"button button-off\" href=\"/target\">TargS</a>\n";
   ptr +="<a class=\"button button-off\" href=\"/read\">READ</a>\n";
-  ptr +="<h4 style=\"text-align: left;display: inline-block;\">Altitude:";
+  ptr +="<h4 style=\"text-align: left;display: inline-block;\">Altitude: ";
   ptr +=alt;
   ptr +="m</h4>\n";
-  ptr +="<h4 style=\"text-align: right;display: inline-block;margin-left: 100px;\">Time:";
-  ptr +=gTime;
+  ptr +="<h4 style=\"text-align: right;display: inline-block;margin-left: 100px;\">Time: ";
+  ptr +=h;
+  ptr +=hh;
+  ptr +=":";
+  ptr +=m;
+  ptr +=mm;
   ptr +="</h4>\n";
   ptr +="<h5>Inf:For best resultes wait for 7 sat or more.</h5>\n";
   ptr +="<h5>Lbento</h5>\n";
