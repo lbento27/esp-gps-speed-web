@@ -139,6 +139,12 @@ void handle_reset() {
 }
 
 void handle_target() {
+  //change target speed
+  if((targetSpeed>=10)&&(targetSpeed<=100)){
+    targetSpeed=targetSpeed + 10;
+    }
+  if(targetSpeed>100){targetSpeed=10;}
+  
   server.send(200, "text/html", SendHTML()); 
 }
 
@@ -182,8 +188,8 @@ String SendHTML(){
   ptr +="</h2>";
   ptr +="<h3>Km/h</h3>\n";
   ptr +="<a style=\"display: inline-block;\" class=\"button button-off\" href=\"/reset\">RESET</a>\n";
-  ptr +="<a style=\"display: inline-block;\" class=\"button button-off\" href=\"/target\">TARGS</a>\n";
-  ptr +="<a class=\"button button-off\" href=\"/read\">READ</a>";
+  ptr +="<a style=\"display: inline-block;\" class=\"button button-off\" href=\"/target\">TargS</a>\n";
+  ptr +="<a class=\"button button-off\" href=\"/read\">READ</a>\n";
   ptr +="<h4 style=\"text-align: left;display: inline-block;\">Altitude:";
   ptr +=alt;
   ptr +="m</h4>\n";
