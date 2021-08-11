@@ -12,6 +12,7 @@ Test: try overclock esp8266 to 160MHZ(in arduino ide just set it under tools) or
 //wemos D1 mini pin out 
  // D7 and D8 , 5v and GND > GPS (wemos D7 to tx on gps module)(wemos D8 to Rx on gps module) OR comment Serial.swap() em Setup to use te RX TX from wemos
 
+//Remove this and 3 more down if you dont want to use favicon
 #include <FS.h>   //Include File System Headers upload and uses files/imagens data folder of project(creat folder an upload using tools-esp8266 skecthdata upload)https://randomnerdtutorials.com/install-esp8266-filesystem-uploader-arduino-ide/
 
 #include <TinyGPS++.h>                                  // Tiny GPS Plus Library
@@ -71,7 +72,7 @@ void setup()   {
     delay(100);
 
     //Initialize File System
-    SPIFFS.begin();
+    SPIFFS.begin();//Remove this if you dont want to use favicon
     
     server.on("/", handle_OnConnect);
     server.on("/reset", handle_reset);
@@ -303,11 +304,12 @@ String SendHTML(){
 }
 
 void handle_NotFound(){
-  if(loadFromSpiffs(server.uri())) return;//needed to get imagens working Spiffs FiLe system
+  if(loadFromSpiffs(server.uri())) return;//needed to get imagens working Spiffs FiLe system //Remove this if you dont want to use favicon
   server.send(404, "text/plain", "Not found");
 }
 
-// Handle imagens Spiffs FiLe system
+//Remove this if you dont want to use favicon
+// Handle imagens Spiffs FiLe system 
 bool loadFromSpiffs(String path){
   String dataType = "text/plain";
   if(path.endsWith("/")) path += "index.htm";
