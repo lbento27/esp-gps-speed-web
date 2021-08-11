@@ -12,6 +12,8 @@ Test: try overclock esp8266 to 160MHZ(in arduino ide just set it under tools) or
 //wemos D1 mini pin out 
  // D7 and D8 , 5v and GND > GPS (wemos D7 to tx on gps module)(wemos D8 to Rx on gps module) OR comment Serial.swap() em Setup to use te RX TX from wemos
 
+#include <FS.h>   //Include File System Headers upload and uses files/imagens data folder of project(creat folder an upload using tools-esp8266 skecthdata upload)https://randomnerdtutorials.com/install-esp8266-filesystem-uploader-arduino-ide/
+
 #include <TinyGPS++.h>                                  // Tiny GPS Plus Library
 //webserver lib
 #include <ESP8266WiFi.h>
@@ -67,6 +69,9 @@ void setup()   {
     WiFi.softAP(ssid, password);
     WiFi.softAPConfig(local_ip, gateway, subnet);
     delay(100);
+
+    //Initialize File System
+    SPIFFS.begin();
     
     server.on("/", handle_OnConnect);
     server.on("/reset", handle_reset);
@@ -209,6 +214,15 @@ String SendHTML(){
   ptr +=".button-off:active {background-color: #2c3e50;}\n";
   ptr +="p {font-size: 14px;color: #888;margin-bottom: 10px;}\n";
   ptr +="</style>\n";
+  //favicon
+  ptr +="<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-icon-180x180.png\">\n";
+  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\"  href=\"/android-icon-192x192.png\">\n";
+  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/favicon-32x32.png\">\n";
+  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"96x96\" href=\"/favicon-96x96.png\">\n";
+  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/favicon-16x16.png\">\n";
+  ptr +="<link rel=\"manifest\" href=\"/manifest.json\">\n";
+  ptr +="<meta name=\"theme-color\" content=\"#ffffff\">\n";
+  //end favicon
   ptr +="</head>\n";
   ptr +="<body>\n";
   ptr +="<h1>RC GPS</h1>\n";
@@ -289,5 +303,32 @@ String SendHTML(){
 }
 
 void handle_NotFound(){
+  if(loadFromSpiffs(server.uri())) return;//needed to get imagens working Spiffs FiLe system
   server.send(404, "text/plain", "Not found");
+}
+
+// Handle imagens Spiffs FiLe system
+bool loadFromSpiffs(String path){
+  String dataType = "text/plain";
+  if(path.endsWith("/")) path += "index.htm";
+ 
+  if(path.endsWith(".src")) path = path.substring(0, path.lastIndexOf("."));
+  else if(path.endsWith(".html")) dataType = "text/html";
+  else if(path.endsWith(".htm")) dataType = "text/html";
+  else if(path.endsWith(".css")) dataType = "text/css";
+  else if(path.endsWith(".js")) dataType = "application/javascript";
+  else if(path.endsWith(".png")) dataType = "image/png";
+  else if(path.endsWith(".gif")) dataType = "image/gif";
+  else if(path.endsWith(".jpg")) dataType = "image/jpeg";
+  else if(path.endsWith(".ico")) dataType = "image/x-icon";
+  else if(path.endsWith(".xml")) dataType = "text/xml";
+  else if(path.endsWith(".pdf")) dataType = "application/pdf";
+  else if(path.endsWith(".zip")) dataType = "application/zip";
+  File dataFile = SPIFFS.open(path.c_str(), "r");
+  if (server.hasArg("download")) dataType = "application/octet-stream";
+  if (server.streamFile(dataFile, dataType) != dataFile.size()) {
+  }
+ 
+  dataFile.close();
+  return true;
 }
