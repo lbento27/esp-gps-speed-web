@@ -127,7 +127,7 @@ void gpsSpeedTime(){
     time_state = 2;
   }
   //calculate time base on gps time or millis
-  if(startTime > 0){
+  if(startTime > 0 && time_state == 2){
       sec = endTime-startTime;
         
       if(sec < 0 || sec > 30000){//reset timer in case of bug menor que 0 sec ou maior que 30sec, 3000 for gps time or 30000 for millis
@@ -139,6 +139,8 @@ void gpsSpeedTime(){
       
       //tsec_str = String(tsec , 1);//ready to display with 1 decimal case to use with decimal, but in this case because gps updates every 1 sec its irrelevant
       tsec_str = (int)tsec;//pass only sec with no deciamal, to remove this comment this line and uncomment line above
+      
+      time_state = 3;
   }
 }
 
@@ -170,6 +172,7 @@ void handle_reset() {
   max_speed = 0;
   time_state = 1;
   tsec = 0.0;
+  tsec_str = "0";
   startTime = 0;
   endTime = 0;
   server.send(200, "text/html", SendHTML()); 
@@ -234,6 +237,13 @@ String SendHTML(){
   ptr +=tsec_str;
   ptr +=" s</h3>\n";}
   if(time_state == 2){
+  ptr +="<h3 style=\" color: #fcf000; text-align: right;display: inline-block;margin-left: 100px;\">";
+  ptr +="0-";
+  ptr +=targetSpeed;
+  ptr +="Km/h: ";
+  ptr +=tsec_str;
+  ptr +=" s</h3>\n";}
+  if(time_state == 3){
   ptr +="<h3 style=\" color: #b80000; text-align: right;display: inline-block;margin-left: 100px;\">";
   ptr +="0-";
   ptr +=targetSpeed;
