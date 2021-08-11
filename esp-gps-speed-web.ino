@@ -5,6 +5,8 @@ The tested GPS module was an U-blox NEO 6M part number GY-GPS6MV2.
 
 IMP NOTE:
 to use webserver and gps we can not use the softwareSerial lib, because the cpu only focus on softserial and wifi ap wont work so we need to use the fisical serial ports rx tx
+and because of the single core esp8266 we need to only update gps inf every 1s otherwise web server will be unresponsive.
+Test: try overclock esp8266 to 160MHZ(in arduino ide just set it under tools) or adapt code to esp32 and use the 2 cores (tasks)
 *********************************************************************/
 
 //wemos D1 mini pin out 
@@ -15,7 +17,7 @@ to use webserver and gps we can not use the softwareSerial lib, because the cpu 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
+//#include <ESP8266mDNS.h>
 
 const char* ssid = "RC-GPS-Bento";
 const char* password = "12345678";
@@ -29,29 +31,30 @@ ESP8266WebServer server(80);
 
 TinyGPSPlus gps;                                        // Create an Instance of the TinyGPS++ object called gps
 
+int gps_speed;
+int max_speed = 0;
 int targetSpeed = 30; //set target speed for 0 to 
 
-int gps_speed;
 int num_sat;
-int max_speed = 0;
 
-int alt;//gps altitude
 int gTime;//gps time
 int h; 
 int hh;
 int m;
 int mm;
+
+int alt;//gps altitude
 float lati;
 float longi;
 String lati_str;
 String longi_str;
 
-int sec=0;
+int time_state = 1;
 float tsec=0.0;
-
-int time_state = 1; 
-int startTime;  //some global variables available anywhere in the program
-int endTime;
+String tsec_str="0";
+unsigned long sec; 
+unsigned long startTime;  
+unsigned long endTime;
 
 
 void setup()   {                
@@ -83,28 +86,14 @@ void loop() {
 
 //GPS FUNC
 void gpsRead(){
-// For one second we parse GPS data and report some key values
-  for (unsigned long start = millis(); millis() - start < 1000;)
+// For default (1000)1 second we parse GPS data and report some key values
+  for (unsigned long start = millis(); millis() - start < 100;)
   {
     while (Serial.available())
     {
       if (gps.encode(Serial.read())){ // Did a new valid sentence come in?
-       
-       num_sat = gps.satellites.value();
-        
-       gTime = gps.time.value();//convert gtime(hhmmsscc) to retrive hh and mm
-       h=(gTime / 10000000U) % 10;
-       hh=(gTime / 1000000U) % 10;
-       m=(gTime / 100000U) % 10;
-       mm=(gTime / 10000U) % 10;
 
-       //just for fun, why not
-       alt = gps.altitude.meters();
-       lati=gps.location.lat();
-       longi=gps.location.lng();
-       lati_str =String(lati , 6);
-       longi_str=String(longi , 6);
-       
+       gpsStatus();    
        gpsMaxSpeed();
        gpsSpeedTime();
       }
@@ -124,25 +113,53 @@ void gpsMaxSpeed(){
 }
 
 void gpsSpeedTime(){
+//Note: because gps read updates every one sec we can determine decimal cases, only seconds so using gps time or millis its the same, possible solution its to use esp32 and run tasks im parallel
 
   //0-tagetSpeedkm/h calc
   if (gps_speed > 1 && time_state == 1){
-    startTime = gps.time.value();
+    //startTime = gps.time.value(); //to use gsp time
+    startTime = millis();           //or use millis
     time_state = 0;
   } 
   if (gps_speed >= targetSpeed && time_state == 0){ 
-    endTime = gps.time.value();
+    //endTime = gps.time.value(); //to use gsp time
+    endTime = millis();           //or use millis
     time_state = 2;
   }
-  //calculate time base on gps time
-  sec = endTime-startTime;
-  tsec=(float)sec / 100.0;
+  //calculate time base on gps time or millis
+  if(startTime > 0){
+      sec = endTime-startTime;
+        
+      if(sec < 0 || sec > 30000){//reset timer in case of bug menor que 0 sec ou maior que 30sec, 3000 for gps time or 30000 for millis
+         tsec = 0.0;
+      }
+      
+      //tsec=(float)sec / 100.0; //to use gsp time 
+      tsec=(float)sec / 1000.0;  //or use millis
+      
+      //tsec_str = String(tsec , 1);//ready to display with 1 decimal case to use with decimal, but in this case because gps updates every 1 sec its irrelevant
+      tsec_str = (int)tsec;//pass only sec with no deciamal, to remove this comment this line and uncomment line above
+  }
+}
+
+void gpsStatus(){
   
-  //reset timer in case of bug menor que 0 sec ou maior que 600sec
-  if(sec < 0 || sec > 6000){
-    tsec = 0.0;
-  }
-  }
+       num_sat = gps.satellites.value();
+        
+       gTime = gps.time.value();//convert gtime(hhmmsscc) to retrive hh and mm
+       h=(gTime / 10000000U) % 10;
+       hh=(gTime / 1000000U) % 10;
+       m=(gTime / 100000U) % 10;
+       mm=(gTime / 10000U) % 10;
+
+       //just for fun, why not
+       alt = gps.altitude.meters();
+       lati=gps.location.lat();
+       longi=gps.location.lng();
+       lati_str =String(lati , 6);
+       longi_str=String(longi , 6);
+}
+
 
 //WebServer
 void handle_OnConnect() {
@@ -207,21 +224,21 @@ String SendHTML(){
   ptr +="0-";
   ptr +=targetSpeed;
   ptr +="Km/h: ";
-  ptr +=String(tsec , 1);
+  ptr +=tsec_str;
   ptr +=" s</h3>\n";}
   if(time_state == 0){
   ptr +="<h3 style=\"color: #27750f; text-align: right;display: inline-block;margin-left: 100px;\">";
   ptr +="0-";
   ptr +=targetSpeed;
   ptr +="Km/h: ";
-  ptr +=String(tsec , 1);
+  ptr +=tsec_str;
   ptr +=" s</h3>\n";}
   if(time_state == 2){
   ptr +="<h3 style=\" color: #b80000; text-align: right;display: inline-block;margin-left: 100px;\">";
   ptr +="0-";
   ptr +=targetSpeed;
   ptr +="Km/h: ";
-  ptr +=String(tsec , 1);//ready to display with 1 decimal case;
+  ptr +=tsec_str;
   ptr +=" s</h3>\n";}
   //end color change
   ptr +="<h3>Max Speed:</h3>";
@@ -250,11 +267,11 @@ String SendHTML(){
   ptr +="<h5>Inf:For best results wait for 7 sat or more.</h5>\n";
   ptr +="<h5>Lbento</h5>\n";
   //debug
-  ptr +="<h5>";
-  ptr +=startTime;
-  ptr +="    ";
-  ptr +=endTime;
-  ptr +="</h5>\n";
+  //ptr +="<h5>";
+  // ptr +=startTime;
+  //ptr +="    ";
+  //ptr +=endTime;
+  //ptr +="</h5>\n";
   //end debug
   ptr +="</body>\n";
   ptr +="</html>\n";
