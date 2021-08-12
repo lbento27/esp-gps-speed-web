@@ -15,14 +15,12 @@ See tutorial in "NEO6M configuration" folder, in that case change  Serial.begin(
 //wemos D1 mini pin out 
  // D7 and D8 , 5v and GND > GPS (wemos D7 to tx on gps module)(wemos D8 to Rx on gps module) OR comment Serial.swap() em Setup to use te RX TX from wemos
 
-//Remove this and 3 more down if you dont want to use favicon
-#include <FS.h>   //Include File System Headers upload and uses files/imagens data folder of project(create folder an upload using tools-esp8266 skecthdata upload)https://randomnerdtutorials.com/install-esp8266-filesystem-uploader-arduino-ide/
-
 #include <TinyGPS++.h>                                  // Tiny GPS Plus Library
 //webserver lib
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+//#include <ESP8266mDNS.h>
 
 const char* ssid = "RC-GPS-Bento";
 const char* password = "12345678";
@@ -63,20 +61,16 @@ unsigned long endTime;
 
 
 void setup()   {                
-    //IMP
-    Serial.begin(115200); //must be 9600 because the gps default (if you change the config of gps, change port rate here to match)
-    //IMP
-    Serial.swap(); // by calling serial.swap we move rx and tx pins to GPIO15 (TX)D8 and GPIO13 (RX)D7, this is different from softwareserial!
+
+    Serial.begin(9600); //must be 9600 because the gps default (if you change the config of gps, change port rate here to match)
+    Serial.swap(); // by calling serial.swap we move de rx an tx pins to GPIO15 (TX)D8 and GPIO13 (RX)D7, this is diferent from softwareserial!
     delay(500);
      
     WiFi.mode(WIFI_AP);           //Only Access point
     WiFi.softAP(ssid, password);
     WiFi.softAPConfig(local_ip, gateway, subnet);
     delay(100);
-
-    //Initialize File System
-    SPIFFS.begin();//Remove this if you dont want to use favicon
-    
+   
     server.on("/", handle_OnConnect);
     server.on("/reset", handle_reset);
     server.on("/read", handle_read);
@@ -126,25 +120,28 @@ void gpsSpeedTime(){
 
   //0-tagetSpeedkm/h calc
   if (gps_speed > 1 && time_state == 1){
-    startTime = gps.time.value(); 
+    startTime = gps.time.value(); //to use gsp time
+    //startTime = millis();           //or use millis
     time_state = 0;
   } 
   if (gps_speed >= targetSpeed && time_state == 0){ 
-    endTime = gps.time.value(); 
+    endTime = gps.time.value(); //to use gsp time
+    //endTime = millis();           //or use millis
     time_state = 2;
   }
-  //calculate time base on gps time
+  //calculate time base on gps time or millis
   if(startTime > 0 && time_state == 2){
       sec = endTime-startTime;
         
-      if(sec < 0 || sec > 3000){//reset timer in case of bug
+      if(sec < 0 || sec > 3000){//reset timer in case of bug >30sec, 3000 for gps time or 30000 for millis
          tsec = 0.0;
       }
       
-      tsec=(float)sec / 100.0;
+      tsec=(float)sec / 100.0; //to use gsp time 
+      //tsec=(float)sec / 1000.0;  //or use millis
       
-      tsec_str = String(tsec , 1);//ready to display with 1 decimal case
-      //tsec_str = (int)tsec;//pass only sec with no decimal case 
+      //tsec_str = String(tsec , 1);//ready to display with 1 decimal case, but in this case because gps updates every 1 sec its irrelevant
+      tsec_str = (int)tsec;//pass only sec with no deciamal
       
       time_state = 3;
   }
@@ -215,15 +212,6 @@ String SendHTML(){
   ptr +=".button-off:active {background-color: #2c3e50;}\n";
   ptr +="p {font-size: 14px;color: #888;margin-bottom: 10px;}\n";
   ptr +="</style>\n";
-  //favicon
-  ptr +="<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-icon-180x180.png\">\n";
-  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\"  href=\"/android-icon-192x192.png\">\n";
-  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/favicon-32x32.png\">\n";
-  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"96x96\" href=\"/favicon-96x96.png\">\n";
-  ptr +="<link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/favicon-16x16.png\">\n";
-  ptr +="<link rel=\"manifest\" href=\"/manifest.json\">\n";
-  ptr +="<meta name=\"theme-color\" content=\"#ffffff\">\n";
-  //end favicon
   ptr +="</head>\n";
   ptr +="<body>\n";
   ptr +="<h1>RC GPS</h1>\n";
@@ -304,33 +292,5 @@ String SendHTML(){
 }
 
 void handle_NotFound(){
-  if(loadFromSpiffs(server.uri())) return;//needed to get imagens working Spiffs FiLe system //Remove this if you dont want to use favicon
   server.send(404, "text/plain", "Not found");
-}
-
-//Remove this if you dont want to use favicon
-// Handle imagens Spiffs FiLe system 
-bool loadFromSpiffs(String path){
-  String dataType = "text/plain";
-  if(path.endsWith("/")) path += "index.htm";
- 
-  if(path.endsWith(".src")) path = path.substring(0, path.lastIndexOf("."));
-  else if(path.endsWith(".html")) dataType = "text/html";
-  else if(path.endsWith(".htm")) dataType = "text/html";
-  else if(path.endsWith(".css")) dataType = "text/css";
-  else if(path.endsWith(".js")) dataType = "application/javascript";
-  else if(path.endsWith(".png")) dataType = "image/png";
-  else if(path.endsWith(".gif")) dataType = "image/gif";
-  else if(path.endsWith(".jpg")) dataType = "image/jpeg";
-  else if(path.endsWith(".ico")) dataType = "image/x-icon";
-  else if(path.endsWith(".xml")) dataType = "text/xml";
-  else if(path.endsWith(".pdf")) dataType = "application/pdf";
-  else if(path.endsWith(".zip")) dataType = "application/zip";
-  File dataFile = SPIFFS.open(path.c_str(), "r");
-  if (server.hasArg("download")) dataType = "application/octet-stream";
-  if (server.streamFile(dataFile, dataType) != dataFile.size()) {
-  }
- 
-  dataFile.close();
-  return true;
 }
