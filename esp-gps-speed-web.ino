@@ -64,7 +64,7 @@ unsigned long endTime;
 
 void setup()   {                
     //IMP
-    Serial.begin(115200); //must be 9600 because the gps default (if you change the config of gps, change port rate here to match)
+    Serial.begin(9600); //must be 9600 because the gps default (if you change the config of gps, change port rate here to match (115200))
     //IMP
     Serial.swap(); // by calling serial.swap we move rx and tx pins to GPIO15 (TX)D8 and GPIO13 (RX)D7, this is different from softwareserial!
     delay(500);
